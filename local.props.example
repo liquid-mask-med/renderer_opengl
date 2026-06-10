@@ -1,5 +1,0 @@
-<Project>
-  <PropertyGroup>
-    <DicomViewerOutputDir>D:\path\to\dicom_viewer\dicom_viewer\bin\x64\Debug\net8.0-windows</DicomViewerOutputDir>
-  </PropertyGroup>
-</Project>

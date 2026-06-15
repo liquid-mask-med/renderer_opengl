@@ -34,7 +34,6 @@ private:
 
 	SliceDesc sliceStates[3];
 	RenderImage sliceImage[3];
-	AABB sliceUVBounds[3];
 
 
 	GLuint fboIds[4]{0};
@@ -68,7 +67,7 @@ public:
 
 	void enableSnapshot() { snapshot = true; }
 	void disableSnapshot() { snapshot = false; }
-	void updateSlice(int index, glm::vec3 origin, glm::vec3 axisU, glm::vec3 axisV);
+	void updateSlice(int index, glm::vec3 origin, glm::vec3 axisU, glm::vec3 axisV, SliceDisplayMapping mapping);
 
 	void rotateCamera(float xDeg, float yDeg);
 	void scaleCamera(float scaleFactor);
@@ -85,7 +84,7 @@ extern "C" {
 	RENDERER_API void EnableSnapshot(Renderer* p);
 	RENDERER_API void DisableSnapshot(Renderer* p);
 	RENDERER_API void ResizeViewport(Renderer* p, int viewIndex, int width, int height);
-	RENDERER_API void SetUpSliceState(Renderer* p, int index, Vec3 origin, Vec3 axisU, Vec3 axisV);
+	RENDERER_API void SetUpSliceState(Renderer* p, int index, Vec3 origin, Vec3 axisU, Vec3 axisV, SliceDisplayMapping mapping);
 	RENDERER_API void RotateCamera(Renderer* p, float dx, float dy);
 	RENDERER_API void ScaleCamera(Renderer* p, float scaleFactor);
 }

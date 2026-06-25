@@ -5,6 +5,8 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <filesystem>
+#include <Windows.h>
 
 #include "Renderer.h"
 #include "TransferFuction.h"
@@ -15,10 +17,24 @@
 
 #define SCREEN_VERTEX_COUNT 6
 
+static std::filesystem::path moduleDirectory()
+{
+	HMODULE module = nullptr;
+	GetModuleHandleExW(
+		GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+		reinterpret_cast<LPCWSTR>(&moduleDirectory),
+		&module);
+
+	wchar_t path[MAX_PATH]{};
+	GetModuleFileNameW(module, path, MAX_PATH);
+	return std::filesystem::path(path).parent_path();
+}
+
 static bool loadShaderSource(const std::string& path, std::string& out) {
-	std::ifstream file(path);
+	const std::filesystem::path shaderPath = moduleDirectory() / path;
+	std::ifstream file(shaderPath);
 	if (!file.is_open()) {
-		std::cerr << "Failed to load shader file: " << path << std::endl;
+		std::cerr << "Failed to load shader file: " << shaderPath << std::endl;
 		return false;
 	}
 
@@ -153,7 +169,7 @@ bool Renderer::initOpenGL()
 	GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
 
 	std::string vertexShaderSource;
-	loadShaderSource("./shaders/main.vs", vertexShaderSource);
+	loadShaderSource("shaders/main.vs", vertexShaderSource);
 	const char* pVertexShaderSource = vertexShaderSource.c_str();
 	glShaderSource(vertexShader, 1, &pVertexShaderSource, nullptr);
 	glCompileShader(vertexShader);
@@ -163,13 +179,13 @@ bool Renderer::initOpenGL()
 	glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &compileSuccess);
 	if (!compileSuccess) {
 		glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-		std::cout << "Compile vertex shader error;" << std::endl;
+		std::cerr << "Compile vertex shader error: " << infoLog << std::endl;
 	}
 
 	GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
 
 	std::string fragmentShaderSource;
-	loadShaderSource("./shaders/main.frag", fragmentShaderSource);
+	loadShaderSource("shaders/main.frag", fragmentShaderSource);
 	const char* pFragmentShaderSource = fragmentShaderSource.c_str();
 
 	glShaderSource(fragmentShader, 1, &pFragmentShaderSource, nullptr);
@@ -178,7 +194,7 @@ bool Renderer::initOpenGL()
 	glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &compileSuccess);
 	if (!compileSuccess) {
 		glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-		std::cout << "Compile fragment shader error;" << std::endl;
+		std::cerr << "Compile fragment shader error: " << infoLog << std::endl;
 	}
 
 	shaderProgram = glCreateProgram();
@@ -189,11 +205,11 @@ bool Renderer::initOpenGL()
 	glGetProgramiv(shaderProgram, GL_LINK_STATUS, &compileSuccess);
 	if (!compileSuccess) {
 		glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-		std::cout << "Link program error;" << std::endl;
+		std::cerr << "Link program error: " << infoLog << std::endl;
 	}
 
 	//mpr shader
-	loadShaderSource("./shaders/mpr.vs", vertexShaderSource);
+	loadShaderSource("shaders/mpr.vs", vertexShaderSource);
 	pVertexShaderSource = vertexShaderSource.c_str();
 	glShaderSource(vertexShader, 1, &pVertexShaderSource, nullptr);
 	glCompileShader(vertexShader);
@@ -201,10 +217,10 @@ bool Renderer::initOpenGL()
 	glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &compileSuccess);
 	if (!compileSuccess) {
 		glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-		std::cout << "Compile mpr vertex shader error;" << std::endl;
+		std::cerr << "Compile mpr vertex shader error: " << infoLog << std::endl;
 	}
 
-	loadShaderSource("./shaders/mpr.frag", fragmentShaderSource);
+	loadShaderSource("shaders/mpr.frag", fragmentShaderSource);
 	pFragmentShaderSource = fragmentShaderSource.c_str();
 
 	glShaderSource(fragmentShader, 1, &pFragmentShaderSource, nullptr);
@@ -213,7 +229,7 @@ bool Renderer::initOpenGL()
 	glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &compileSuccess);
 	if (!compileSuccess) {
 		glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-		std::cout << "Compile mpr fragment shader error;" << std::endl;
+		std::cerr << "Compile mpr fragment shader error: " << infoLog << std::endl;
 	}
 
 	mprShader = glCreateProgram();
@@ -224,7 +240,7 @@ bool Renderer::initOpenGL()
 	glGetProgramiv(mprShader, GL_LINK_STATUS, &compileSuccess);
 	if (!compileSuccess) {
 		glGetProgramInfoLog(mprShader, 512, NULL, infoLog);
-		std::cout << "Link mpr program error;" << std::endl;
+		std::cerr << "Link mpr program error: " << infoLog << std::endl;
 	}
 
 	glDeleteShader(vertexShader);
@@ -392,6 +408,7 @@ void Renderer::render(int mask)
 		glDisable(GL_CULL_FACE);
 
 		glClearColor(0, 0, 0, 1);
+		//glClearColor(0.55f, 0.58f, 0.78f, 1.0f);
 		glClearDepth(1.0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -407,7 +424,6 @@ void Renderer::render(int mask)
 		glBindTexture(GL_TEXTURE_1D, volumeColor);
 		glUniform1i(glGetUniformLocation(shaderProgram, "volumeColor"), 1);
 
-		// 恢复活动单元到 0（可选）
 		glActiveTexture(GL_TEXTURE0);
 
 		glUniform1i(glGetUniformLocation(shaderProgram, "windowCenter"), localParams.windowCenter);
@@ -428,7 +444,12 @@ void Renderer::render(int mask)
 		float xLength = localParams.width * localParams.spacingX;
 		float yLength = localParams.height * localParams.spacingY;
 		float zLength = localParams.depth * localParams.spacingZ;
-		int maxSteps = int(sqrt(xLength * xLength + yLength * yLength + zLength * zLength));
+
+		float stepSize = std::min({ localParams.spacingX, localParams.spacingY, localParams.spacingZ });
+		stepSize *= 0.5f;
+		glUniform1f(glGetUniformLocation(shaderProgram, "stepSize"), stepSize);
+
+		int maxSteps = (int)ceil(sqrt(xLength * xLength + yLength * yLength + zLength * zLength) / stepSize) + 1;
 		glUniform1i(glGetUniformLocation(shaderProgram, "maxSteps"), maxSteps);
 
 		glBindVertexArray(VAO);
@@ -628,9 +649,9 @@ RENDERER_API void ResizeViewport(Renderer* p, int index, int width, int height)
 	p->resizeViewport(index, width, height);
 }
 
-RENDERER_API void SetUpRenderParameters(Renderer* p, uint16_t* volumeData, int width, int height, int depth, int windowWidth, int windowCenter, double spacing, double thickness)
+RENDERER_API void SetUpRenderParameters(Renderer* p, uint16_t* volumeData, int width, int height, int depth, int windowWidth, int windowCenter, double spacingX, double spacingY, double spacingZ)
 {
-	p->updateRenderParameters({ width, height, depth, volumeData, spacing, spacing, thickness, windowCenter, windowWidth });
+	p->updateRenderParameters({ width, height, depth, volumeData, spacingX, spacingY, spacingZ, windowCenter, windowWidth });
 }
 
 RENDERER_API void SetUpSliceState(Renderer* p, int index, Vec3 origin, Vec3 axisU, Vec3 axisV, SliceDisplayMapping mapping)
